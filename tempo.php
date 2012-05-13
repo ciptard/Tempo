@@ -24,7 +24,7 @@ if ( $argc != 2 ) {
 
 chdir( $argv[1] . '/..' );
 
-include $argv[1].'/config/tempo-config.php';
+require_once $argv[1].'/config/tempo-config.php';
 extract( $config );
 
 function resizeimage($filename, $width) {
@@ -33,7 +33,7 @@ function resizeimage($filename, $width) {
 	global $cache_dir;
 	global $output_dir;
 	
-    $height = 3000;
+    $height = 8000;
 
     list($width_orig, $height_orig) = getimagesize($filename);
 
@@ -79,11 +79,17 @@ function resizeimage($filename, $width) {
 function rrmdir($dir) {
   if (is_dir($dir)) {
     $files = scandir($dir);
-    foreach ($files as $file)
-    if ($file != "." && $file != "..") rrmdir("$dir/$file");
-    rmdir($dir);
-  }
-  else if (file_exists($dir)) unlink($dir);
+    foreach ($files as $file) {
+	    if ($file != "." && $file != "..") {
+	    	rrmdir("$dir/$file");
+	    }
+	}
+	rmdir($dir);
+  } else {
+  	if (file_exists($dir)) {
+  		unlink($dir);
+  	}
+  }	
 } 
 
 // from comment at http://php.net/manual/en/function.copy.php
@@ -117,7 +123,11 @@ function slug( $string, $extension ) {
 
 // lists txt files in a directory. skips filenames that start with #
 function dirlist( &$list, $path ) {
-    $dh = @opendir( $path ); 
+    $dh = @opendir( $path );
+    
+    if ( !$dh ) {
+    	return;
+    } 
 
     while( false !== ( $file = readdir( $dh ) ) ) {
 		if ( !is_dir( "$path/$file" ) && endswith( $file, ".txt" ) && strpos($file, '#' ) !== 0 ) {
@@ -266,8 +276,7 @@ for ( $i=0; $i < count( $all_files ); $i++ ) {
 }
 
 // blog
-
-$blog_pattern = '/^blog-(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-(.*)\.txt$/';
+$blog_pattern = '/^'.$blog_prefix.'-(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-(.*)\.txt$/';
 function blog_sort_descending($a, $b) { return strcmp($b["file"], $a["file"]); }
 
 // filter blog posts
@@ -307,5 +316,6 @@ for ( $i=0; $i < count( $all_files ); $i++ ) {
 // copy static resources
 echo "Copying media\n";
 rcopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
+rcopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
 
 ?>
