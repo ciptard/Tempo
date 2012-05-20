@@ -6,9 +6,14 @@ require_once 'markdown.php';
 
 
 /*
-Tempo 1.1
+Tempo 1.2
 Author: Tomas Andrle
 Website: http://www.catnapgames.com/blog/2011/10/13/tempo-php-static-site-generator.html
+
+New in 1.2:
+
+Add a check for the short_open_tag setting (must be being enabled). Add a sanity check
+to see if the site config file was read.
 
 New in 1.1:
 
@@ -22,10 +27,21 @@ if ( $argc != 2 ) {
 	exit(0);
 }
 
+if ( !ini_get( 'short_open_tag' ) ) {
+	if ( !ini_set( 'short_open_tag', '1' ) ) {
+		die( "PHP setting 'short_open_tag' is disabled and cannot be enabled from inside this script. Please enable it in your php.ini file and try again" );
+	}
+}
+
 chdir( $argv[1] . '/..' );
 
-require_once $argv[1].'/config/tempo-config.php';
+$config_filename = $argv[1].'/config/tempo-config.php';
+require_once $config_filename;
 extract( $config );
+
+if ( ( !$site_dir ) || ( !is_dir( $site_dir ) ) || ( !$output_dir ) ) {
+	die( "Invalid config file. Please check that $config_filename contains all the required info." );
+}
 
 function resizeimage($filename, $width) {
 	global $site_dir;
