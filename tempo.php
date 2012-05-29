@@ -6,7 +6,7 @@ require_once 'markdown.php';
 
 
 /*
-Tempo 1.2
+Tempo 1.2.1
 Author: Tomas Andrle
 Website: http://www.catnapgames.com/blog/2011/10/13/tempo-php-static-site-generator.html
 
@@ -43,7 +43,7 @@ if ( ( !$site_dir ) || ( !is_dir( $site_dir ) ) || ( !$output_dir ) ) {
 	die( "Invalid config file. Please check that $config_filename contains all the required info." );
 }
 
-function resizeimage($filename, $width) {
+function TempoResizeImage($filename, $width) {
 	global $site_dir;
 	global $media_dir;
 	global $cache_dir;
@@ -67,7 +67,7 @@ function resizeimage($filename, $width) {
 
         $info = pathinfo($filename);
         $dir = str_replace( "${site_dir}/${media_dir}", "${output_dir}/${cache_dir}", $info['dirname'] );
-        $output_filename = $dir .'/' . stem($filename) . '-' . $width . '.'. $info['extension'];
+        $output_filename = $dir .'/' . TempoStem($filename) . '-' . $width . '.'. $info['extension'];
         
 		@mkdir( dirname( $output_filename ), 0777, true ); // recursive
 
@@ -91,13 +91,13 @@ function resizeimage($filename, $width) {
     }
 }
 
-// from comment at http://php.net/manual/en/function.copy.php
-function rrmdir($dir) {
+// recursively remove a dir. from comment at http://php.net/manual/en/function.copy.php
+function TempoRmDir($dir) {
   if (is_dir($dir)) {
     $files = scandir($dir);
     foreach ($files as $file) {
 	    if ($file != "." && $file != "..") {
-	    	rrmdir("$dir/$file");
+	    	TempoRmDir("$dir/$file");
 	    }
 	}
 	rmdir($dir);
@@ -109,36 +109,43 @@ function rrmdir($dir) {
 } 
 
 // from comment at http://php.net/manual/en/function.copy.php
-function rcopy($src, $dst) {
-  if (file_exists($dst)) rrmdir($dst);
-  if (is_dir($src)) {
-    mkdir($dst);
-    $files = scandir($src);
-    foreach ($files as $file)
-    if ($file != "." && $file != "..") rcopy("$src/$file", "$dst/$file"); 
-  }
-  else if (file_exists($src)) copy($src, $dst);
+function TempoRCopy($src, $dst) {
+	if (file_exists($dst)) {
+		TempoRmDir($dst);
+	}
+	if (is_dir($src)) {
+		mkdir($dst);
+		$files = scandir($src);
+		foreach ($files as $file) {
+			if ($file != "." && $file != "..") {
+				TempoRCopy("$src/$file", "$dst/$file"); 
+			}
+		}
+	}
+	else if (file_exists($src)) {
+		copy($src, $dst);
+	}
 }
 
-function endswith($string, $end) {
+function TempoEndsWith($string, $end) {
     $strlen = strlen($string);
     $testlen = strlen($end);
     if ($testlen > $strlen) return false;
     return substr_compare($string, $end, -$testlen) === 0;
 }
 
-function stem( $file ) {
+function TempoStem( $file ) {
     $info = pathinfo($file);
     $file_name =  basename($file,'.'.$info['extension']);
     return $file_name;
 }
 
-function slug( $string, $extension ) {
+function TempoSlug( $string, $extension ) {
     return strtolower( preg_replace( array( '/-/', '/[^a-zA-Z0-9\s\/\.]/', '/[\s]/', '/\.txt$/' ), array( '/', '', '-', '.'.$extension ), $string ) );
 }
 
 // lists txt files in a directory. skips filenames that start with #
-function dirlist( &$list, $path ) {
+function TempoDirlist( &$list, $path ) {
     $dh = @opendir( $path );
     
     if ( !$dh ) {
@@ -146,7 +153,7 @@ function dirlist( &$list, $path ) {
     } 
 
     while( false !== ( $file = readdir( $dh ) ) ) {
-		if ( !is_dir( "$path/$file" ) && endswith( $file, ".txt" ) && strpos($file, '#' ) !== 0 ) {
+		if ( !is_dir( "$path/$file" ) && TempoEndsWith( $file, ".txt" ) && strpos($file, '#' ) !== 0 ) {
 			$list[] = array( 'file' => $file, );
 		}
     }
@@ -154,7 +161,7 @@ function dirlist( &$list, $path ) {
     closedir( $dh );
 }
 
-function filter_make_url( $var ) {
+function TempoFilterUrl( $var ) {
 	$pattern = '/([^\"])(http:\/\/)([\w\.\/\-\:\+;_?=&%@$#~]*[\w\/\-\+;_?=&@%$#~])([\s]?)/';
 	
 	if ( preg_match_all( $pattern, $var, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) ) {
@@ -178,7 +185,7 @@ function filter_make_url( $var ) {
 	}
 }
 
-function filter_img( $var, $root_url ) {
+function TempoFilterImg( $var, $root_url ) {
 	global $site_dir;
 	global $site_url;
 	global $image_dimensions;
@@ -193,7 +200,7 @@ function filter_img( $var, $root_url ) {
 			$src = $matches[$i][2];
 			
 			$width = $image_dimensions[ $placement ];
-			$new = resizeimage( $site_dir . '/' . $src, $width );
+			$new = TempoResizeImage( $site_dir . '/' . $src, $width );
 			$new = str_replace( $output_dir .'/', '', $new ); // image was resized, links to thumbnail
 			$new = str_replace( $site_dir .'/', '', $new ); // image was not resized, links to original
 			
@@ -206,7 +213,7 @@ function filter_img( $var, $root_url ) {
 	return $var;
 }
 
-function generate_page( $item ) {
+function TempoGeneratePage( $item ) {
 	global $template_dir;
 	global $site_url;
 	global $blog_rss;
@@ -225,7 +232,7 @@ function generate_page( $item ) {
 	return $contents;
 }
 
-function parse_text($file, $lines) {
+function TempoParse($file, $lines) {
 	global $site_url;
 
 	$reading_header = true;
@@ -251,7 +258,7 @@ function parse_text($file, $lines) {
 		}
 	}
 	
-	$result['slug'] = slug( $file, $result['extension'] );
+	$result['slug'] = TempoSlug( $file, $result['extension'] );
 	$result['url'] = $site_url . '/' . $result[ 'slug' ];
 	$result['rss'] = in_array( strtolower($result['rss']), array( 'yes', 'true', 'on', 'enable', 'enabled' ) );
 
@@ -268,8 +275,8 @@ function parse_text($file, $lines) {
 	if ( $result['format'] == 'markdown' ) {
 		$result['body'] = Markdown( $result['body'] );
 	} else {
-		$result['body'] = filter_make_url( $result['body'] );
-		$result['body'] = filter_img( $result['body'], $result['root_url'] );
+		$result['body'] = TempoFilterUrl( $result['body'] );
+		$result['body'] = TempoFilterImg( $result['body'], $result['root_url'] );
 	}
 
 	return $result;
@@ -277,28 +284,28 @@ function parse_text($file, $lines) {
 
 // delete previous version
 echo "Cleaning old output\n";
-rrmdir( $output_dir );
+TempoRmDir( $output_dir );
 
 // get list of pages, each with filename and slug
 $all_files = array();
-dirlist( &$all_files, $pages_dir ); 
+TempoDirlist( &$all_files, $pages_dir ); 
 
 // parse titles, template names and other meta information, add it to $all_files
 for ( $i=0; $i < count( $all_files ); $i++ ) {
 	extract( $all_files[ $i ] );
 	$lines = file( $pages_dir . '/' . $file );
-	$vars = parse_text( $file, $lines );
+	$vars = TempoParse( $file, $lines );
 	$all_files[ $i ] = array_merge( $all_files[ $i ], $vars );
 }
 
 // blog
 $blog_pattern = '/^'.$blog_prefix.'-(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-(.*)\.txt$/';
-function blog_sort_descending($a, $b) { return strcmp($b["file"], $a["file"]); }
+function TempoBlogSortDescending($a, $b) { return strcmp($b["file"], $a["file"]); }
 
 // filter blog posts
 
 $blog_files = array();
-usort( $all_files, "blog_sort_descending" );
+usort( $all_files, "TempoBlogSortDescending" );
 
 for ( $i=0; $i < count( $all_files ); $i++ ) {
 	if ( preg_match( $blog_pattern, $all_files[ $i ]['file'] ) ) {
@@ -320,7 +327,7 @@ $blog_rss = array_slice( $blog_files, 0, min( $blog_num_rss, count( $blog_files 
 for ( $i=0; $i < count( $all_files ); $i++ ) {
 	echo "Processing ".$all_files[ $i ]['file']."\n";
 
-	$contents = generate_page( $all_files[$i] );
+	$contents = TempoGeneratePage( $all_files[$i] );
 	
 	$destination = $output_dir . '/' . $all_files[$i]['slug'];
 	
@@ -331,7 +338,7 @@ for ( $i=0; $i < count( $all_files ); $i++ ) {
 
 // copy static resources
 echo "Copying media\n";
-rcopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
-rcopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
+TempoRCopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
+TempoRCopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
 
 ?>
