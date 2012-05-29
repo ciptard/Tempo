@@ -1,7 +1,7 @@
 <?php 
 
 /*
-Tempo 1.2.2
+Tempo 1.2.3
 Author: Tomas Andrle
 Website: http://www.catnapgames.com/blog/2011/10/13/tempo-php-static-site-generator.html
 
@@ -195,7 +195,7 @@ function TempoGeneratePage( $template_dir, $site_url, $blog_rss, $blog_files, $i
 	return $contents;
 }
 
-function TempoParse( $site_url, $file, $lines ) {
+function TempoParse( $default_format, $site_url, $file, $lines ) {
 	$reading_header = true;
 	$body = array();
 	$result = array();
@@ -233,11 +233,21 @@ function TempoParse( $site_url, $file, $lines ) {
 	
 	$result['body'] = join( $body, "\n" );
 	
-	if ( $result['format'] == 'markdown' ) {
-		$result['body'] = Markdown( $result['body'] );
-	} else {
-		$result['body'] = TempoFilterUrl( $result['body'] );
-		$result['body'] = TempoFilterImg( $site_dir, $site_url, $image_dimensions, $output_dir, $result['body'], $result['root_url'] );
+	if ( !$result['format'] ) {
+		$result['format'] = $default_format;
+	}
+	
+	switch ( $result['format'] ) {
+		case 'markdown':
+			$result['body'] = Markdown( $result['body'] );
+			break;
+			
+		case 'tempo':
+			$result['body'] = TempoFilterUrl( $result['body'] );
+			$result['body'] = TempoFilterImg( $site_dir, $site_url, $image_dimensions, $output_dir, $result['body'], $result['root_url'] );
+			
+		default:
+			// no filtering
 	}
 
 	return $result;
@@ -278,7 +288,7 @@ function TempoMain( $argc, $argv ) {
 	for ( $i=0; $i < count( $all_files ); $i++ ) {
 		extract( $all_files[ $i ] );
 		$lines = file( $pages_dir . '/' . $file );
-		$vars = TempoParse( $site_url, $file, $lines );
+		$vars = TempoParse( $default_format, $site_url, $file, $lines );
 		$all_files[ $i ] = array_merge( $all_files[ $i ], $vars );
 	}
 	
