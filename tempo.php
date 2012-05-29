@@ -1,12 +1,7 @@
 <?php 
 
-require_once 'markdown.php';
-// get markdown.php from http://michelf.com/projects/php-markdown/
-// or mirror at http://www.catnapgames.com/media/src/markdown.php
-
-
 /*
-Tempo 1.2.1
+Tempo 1.2.2
 Author: Tomas Andrle
 Website: http://www.catnapgames.com/blog/2011/10/13/tempo-php-static-site-generator.html
 
@@ -19,36 +14,14 @@ New in 1.1:
 
 Markdown support. Instead of the [img ] tags and HTML you can use Markdown. Just specify
 "format markdown" in the text file header.
-
 */
 
-if ( $argc != 2 ) {
-	echo "Usage: tempo.php site_directory\n";
-	exit(0);
-}
+require_once 'markdown.php';
+// get markdown.php from http://michelf.com/projects/php-markdown/
+// or mirror at http://www.catnapgames.com/media/src/markdown.php
 
-if ( !ini_get( 'short_open_tag' ) ) {
-	if ( !ini_set( 'short_open_tag', '1' ) ) {
-		die( "PHP setting 'short_open_tag' is disabled and cannot be enabled from inside this script. Please enable it in your php.ini file and try again" );
-	}
-}
 
-chdir( $argv[1] . '/..' );
-
-$config_filename = $argv[1].'/config/tempo-config.php';
-require_once $config_filename;
-extract( $config );
-
-if ( ( !$site_dir ) || ( !is_dir( $site_dir ) ) || ( !$output_dir ) ) {
-	die( "Invalid config file. Please check that $config_filename contains all the required info." );
-}
-
-function TempoResizeImage($filename, $width) {
-	global $site_dir;
-	global $media_dir;
-	global $cache_dir;
-	global $output_dir;
-	
+function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $filename, $width) {
     $height = 8000;
 
     list($width_orig, $height_orig) = getimagesize($filename);
@@ -185,12 +158,7 @@ function TempoFilterUrl( $var ) {
 	}
 }
 
-function TempoFilterImg( $var, $root_url ) {
-	global $site_dir;
-	global $site_url;
-	global $image_dimensions;
-	global $output_dir;
-	
+function TempoFilterImg( $site_dir, $site_url, $image_dimensions, $output_dir, $var, $root_url ) {
 	$href = '$2.$3';
 	$pattern = '/\[(imgleft|imgright|imgfull)\s+([^\]]*)\]/'; // example: [imgleft media/123.png]
 	$matches = array();
@@ -200,7 +168,7 @@ function TempoFilterImg( $var, $root_url ) {
 			$src = $matches[$i][2];
 			
 			$width = $image_dimensions[ $placement ];
-			$new = TempoResizeImage( $site_dir . '/' . $src, $width );
+			$new = TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $site_dir . '/' . $src, $width );
 			$new = str_replace( $output_dir .'/', '', $new ); // image was resized, links to thumbnail
 			$new = str_replace( $site_dir .'/', '', $new ); // image was not resized, links to original
 			
@@ -213,12 +181,7 @@ function TempoFilterImg( $var, $root_url ) {
 	return $var;
 }
 
-function TempoGeneratePage( $item ) {
-	global $template_dir;
-	global $site_url;
-	global $blog_rss;
-	global $blog_files;
-	
+function TempoGeneratePage( $template_dir, $site_url, $blog_rss, $blog_files, $item ) {
 	extract( $item );
 	
 	$template_file = $template_dir . '/' . $template . '.php';	
@@ -232,9 +195,7 @@ function TempoGeneratePage( $item ) {
 	return $contents;
 }
 
-function TempoParse($file, $lines) {
-	global $site_url;
-
+function TempoParse( $site_url, $file, $lines ) {
 	$reading_header = true;
 	$body = array();
 	$result = array();
@@ -276,69 +237,97 @@ function TempoParse($file, $lines) {
 		$result['body'] = Markdown( $result['body'] );
 	} else {
 		$result['body'] = TempoFilterUrl( $result['body'] );
-		$result['body'] = TempoFilterImg( $result['body'], $result['root_url'] );
+		$result['body'] = TempoFilterImg( $site_dir, $site_url, $image_dimensions, $output_dir, $result['body'], $result['root_url'] );
 	}
 
 	return $result;
 }
 
-// delete previous version
-echo "Cleaning old output\n";
-TempoRmDir( $output_dir );
 
-// get list of pages, each with filename and slug
-$all_files = array();
-TempoDirlist( &$all_files, $pages_dir ); 
-
-// parse titles, template names and other meta information, add it to $all_files
-for ( $i=0; $i < count( $all_files ); $i++ ) {
-	extract( $all_files[ $i ] );
-	$lines = file( $pages_dir . '/' . $file );
-	$vars = TempoParse( $file, $lines );
-	$all_files[ $i ] = array_merge( $all_files[ $i ], $vars );
-}
-
-// blog
-$blog_pattern = '/^'.$blog_prefix.'-(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-(.*)\.txt$/';
-function TempoBlogSortDescending($a, $b) { return strcmp($b["file"], $a["file"]); }
-
-// filter blog posts
-
-$blog_files = array();
-usort( $all_files, "TempoBlogSortDescending" );
-
-for ( $i=0; $i < count( $all_files ); $i++ ) {
-	if ( preg_match( $blog_pattern, $all_files[ $i ]['file'] ) ) {
-		$blog_files[] = $all_files[ $i ];
+function TempoMain( $argc, $argv ) {
+	if ( $argc != 2 ) {
+		echo "Usage: tempo.php site_directory\n";
+		exit(0);
 	}
+	
+	if ( !ini_get( 'short_open_tag' ) ) {
+		if ( !ini_set( 'short_open_tag', '1' ) ) {
+			die( "PHP setting 'short_open_tag' is disabled and cannot be enabled from inside this script. Please enable it in your php.ini file and try again" );
+		}
+	}
+	
+	chdir( $argv[1] . '/..' );
+	
+	$config_filename = $argv[1].'/config/tempo-config.php';
+	require_once $config_filename;
+	extract( $config );
+	
+	if ( ( !$site_dir ) || ( !is_dir( $site_dir ) ) || ( !$output_dir ) ) {
+		die( "Invalid config file. Please check that $config_filename contains all the required info." );
+	}
+	
+	// delete previous version
+	echo "Cleaning old output\n";
+	TempoRmDir( $output_dir );
+	
+	// get list of pages, each with filename and slug
+	$all_files = array();
+	TempoDirlist( &$all_files, $pages_dir ); 
+	
+	// parse titles, template names and other meta information, add it to $all_files
+	for ( $i=0; $i < count( $all_files ); $i++ ) {
+		extract( $all_files[ $i ] );
+		$lines = file( $pages_dir . '/' . $file );
+		$vars = TempoParse( $site_url, $file, $lines );
+		$all_files[ $i ] = array_merge( $all_files[ $i ], $vars );
+	}
+	
+	// blog
+	$blog_pattern = '/^'.$blog_prefix.'-(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})-(.*)\.txt$/';
+	function TempoBlogSortDescending($a, $b) { return strcmp($b["file"], $a["file"]); }
+	
+	// filter blog posts
+	
+	$blog_files = array();
+	usort( $all_files, "TempoBlogSortDescending" );
+	
+	for ( $i=0; $i < count( $all_files ); $i++ ) {
+		if ( preg_match( $blog_pattern, $all_files[ $i ]['file'] ) ) {
+			$blog_files[] = $all_files[ $i ];
+		}
+	}
+	
+	// extract blog post dates (year, month, day), save back into $blog_files
+	for ( $i=0; $i < count( $blog_files ); $i++ ) {
+		$matches = array();
+		preg_match( $blog_pattern, $blog_files[ $i ]['file'], $matches );
+		$blog_files[ $i ] = array_merge( $blog_files[ $i ], $matches );
+	}
+	
+	//$blog_latest = array_slice( $blog_files, 0, min( $blog_num_latest, count( $blog_files ) ) );
+	$blog_rss = array_slice( $blog_files, 0, min( $blog_num_rss, count( $blog_files ) ) );
+	
+	// generate html
+	for ( $i=0; $i < count( $all_files ); $i++ ) {
+		echo "Processing ".$all_files[ $i ]['file']."\n";
+	
+		$contents = TempoGeneratePage( $template_dir, $site_url, $blog_rss, $blog_files, $all_files[$i] );
+		
+		$destination = $output_dir . '/' . $all_files[$i]['slug'];
+		
+		@mkdir( dirname( $destination ), 0777, true );
+		
+		file_put_contents( $destination, $contents );
+	}
+	
+	// copy static resources
+	echo "Copying media\n";
+	TempoRCopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
+	TempoRCopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
 }
 
-// extract blog post dates (year, month, day), save back into $blog_files
-for ( $i=0; $i < count( $blog_files ); $i++ ) {
-	$matches = array();
-	preg_match( $blog_pattern, $blog_files[ $i ]['file'], $matches );
-	$blog_files[ $i ] = array_merge( $blog_files[ $i ], $matches );
-}
 
-//$blog_latest = array_slice( $blog_files, 0, min( $blog_num_latest, count( $blog_files ) ) );
-$blog_rss = array_slice( $blog_files, 0, min( $blog_num_rss, count( $blog_files ) ) );
+TempoMain( $argc, $argv );
 
-// generate html
-for ( $i=0; $i < count( $all_files ); $i++ ) {
-	echo "Processing ".$all_files[ $i ]['file']."\n";
-
-	$contents = TempoGeneratePage( $all_files[$i] );
-	
-	$destination = $output_dir . '/' . $all_files[$i]['slug'];
-	
-	@mkdir( dirname( $destination ), 0777, true );
-	
-	file_put_contents( $destination, $contents );
-}
-
-// copy static resources
-echo "Copying media\n";
-TempoRCopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
-TempoRCopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
 
 ?>
