@@ -27,35 +27,35 @@ Best way to learn is to check out the example site and go from there.
 
 The source for a Tempo site might look like this:
 
-	tempo.php
-	markdown.php
-	www.example.com/
-		config/
-			tempo-config.php
-		media/
-			image.jpg
-			styles.css
-		pages/
-			index.txt
-			about.txt
-			blog-2012-06-15-title of blog post.txt
-			blog-2012-06-17-another blog post.txt
-		templates/
-			header.php
-			footer.php
-			basepage.php
-			blog-rss.php
-			blog.php
-		gallery/
-			photos1/
-				photo1.jpg
-				photo2.jpg
-				photo3!.jpg
-			photos2/
-				photo1.jpg
-				photo2!.jpg
-				photo3.jpg
-		.htaccess
+		tempo.php
+		markdown.php
+		www.example.com/
+			config/
+				tempo-config.php
+			media/
+				image.jpg
+				styles.css
+			pages/
+				index.txt
+				about.txt
+				blog-2012-06-15-title of blog post.txt
+				blog-2012-06-17-another blog post.txt
+			templates/
+				header.php
+				footer.php
+				basepage.php
+				blog-rss.php
+				blog.php
+			gallery/
+				photos1/
+					photo1.jpg
+					photo2.jpg
+					photo3!.jpg
+				photos2/
+					photo1.jpg
+					photo2!.jpg
+					photo3.jpg
+			.htaccess
 
 **Usage**
 
