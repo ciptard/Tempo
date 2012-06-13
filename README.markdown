@@ -57,6 +57,13 @@ The source for a Tempo site might look like this:
 					photo3.jpg
 			.htaccess
 
+- tempo-config.php is the key file for configuring the site
+- pages/*.txt get converted to *.html
+- blog-2012-06-15-title of blog post.txt gets converted to blog/2012/06/15/title-of-blog-post.html
+- media/* gets copied as-is
+- gallery/* doesn't get copied but new cache/ in output folder will contain resized versions with same structure
+- .htaccess is optional
+
 **Usage**
 
 	> cd MySites
