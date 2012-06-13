@@ -66,7 +66,7 @@ function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $file
         return $output_filename;
     } else {
     	if ( $force_copy ) {
-    		$dest = $dir . basename( $filename );
+    		$dest = $dir . '/' . basename( $filename );
     		echo "  Copying unchanged image to $dest\n";
     		copy( $filename, $dest );
     		return $dest;
