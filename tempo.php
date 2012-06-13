@@ -1,9 +1,13 @@
 <?php 
 
 /*
-Tempo 1.2.3
+Tempo 1.3
 Author: Tomas Andrle
 Website: http://www.catnapgames.com/blog/2011/10/13/tempo-php-static-site-generator.html
+
+New in 1.3:
+
+Photo galleries.
 
 New in 1.2:
 
@@ -21,12 +25,15 @@ require_once 'markdown.php';
 // or mirror at http://www.catnapgames.com/media/src/markdown.php
 
 
-function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $filename, $width) {
+function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $filename, $width, $force_copy = false) {
     $height = 8000;
 
     list($width_orig, $height_orig) = getimagesize($filename);
 
-    if ( $width_orig > $width || $height_orig > $height ) {
+	$info = pathinfo($filename);
+	$dir = str_replace( "${site_dir}/${media_dir}", "${output_dir}/${cache_dir}", $info['dirname'] );
+
+    if ( $width != 'original' && ( $width_orig > $width || $height_orig > $height ) ) {
 
         $ratio_orig = $width_orig/$height_orig;
 
@@ -38,8 +45,6 @@ function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $file
 
         echo "  Resizing image $filename to ${width}x${height}\n";
 
-        $info = pathinfo($filename);
-        $dir = str_replace( "${site_dir}/${media_dir}", "${output_dir}/${cache_dir}", $info['dirname'] );
         $output_filename = $dir .'/' . TempoStem($filename) . '-' . $width . '.'. $info['extension'];
         
 		@mkdir( dirname( $output_filename ), 0777, true ); // recursive
@@ -60,7 +65,14 @@ function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $file
                 
         return $output_filename;
     } else {
-        return $filename;
+    	if ( $force_copy ) {
+    		$dest = $dir . basename( $filename );
+    		echo "  Copying unchanged image to $dest\n";
+    		copy( $filename, $dest );
+    		return $dest;
+    	} else {
+	        return $filename;
+	    }
     }
 }
 
@@ -104,7 +116,7 @@ function TempoEndsWith($string, $end) {
     $strlen = strlen($string);
     $testlen = strlen($end);
     if ($testlen > $strlen) return false;
-    return substr_compare($string, $end, -$testlen) === 0;
+    return substr_compare($string, $end, -$testlen, $testlen, true) === 0;
 }
 
 function TempoStem( $file ) {
@@ -113,26 +125,52 @@ function TempoStem( $file ) {
     return $file_name;
 }
 
-function TempoSlug( $string, $extension ) {
+function TempoSlug( $string, $extension = '' ) {
     return strtolower( preg_replace( array( '/-/', '/[^a-zA-Z0-9\s\/\.]/', '/[\s]/', '/\.txt$/' ), array( '/', '', '-', '.'.$extension ), $string ) );
 }
 
-// lists txt files in a directory. skips filenames that start with #
-function TempoDirlist( &$list, $path ) {
+// lists txt files in a directory. optionally skips filenames that start with #.
+function TempoListFiles( $path, $extension, $skip_hash = false ) {
     $dh = @opendir( $path );
     
     if ( !$dh ) {
     	return;
     } 
 
+	$list = array();
+
     while( false !== ( $file = readdir( $dh ) ) ) {
-		if ( !is_dir( "$path/$file" ) && TempoEndsWith( $file, ".txt" ) && strpos($file, '#' ) !== 0 ) {
-			$list[] = array( 'file' => $file, );
+		if ( !is_dir( "$path/$file" ) && TempoEndsWith( $file, $extension ) && ( !$skip_hash || ( strpos($file, '#' ) !== 0 ) ) ) {
+			$list[] = $file;
 		}
     }
 
     closedir( $dh );
+    
+    return $list;
 }
+
+
+function TempoListSubdirs( $path ) {
+    $dh = @opendir( $path );
+
+    if ( !$dh ) {
+    	return;
+    }
+
+	$list = array();
+
+    while( false !== ( $file = readdir( $dh ) ) ) {
+		if ( is_dir( "$path/$file" ) && $file != '.' && $file != '..' ) {
+			$list[] = $file;
+		}
+    }
+    
+    closedir( $dh );
+    
+    return $list;
+}
+
 
 function TempoFilterUrl( $var ) {
 	$pattern = '/([^\"])(http:\/\/)([\w\.\/\-\:\+;_?=&%@$#~]*[\w\/\-\+;_?=&@%$#~])([\s]?)/';
@@ -254,6 +292,11 @@ function TempoParse( $default_format, $site_url, $file, $lines ) {
 }
 
 
+function TempoBeautifyName( $s ) {
+	return ucwords( str_replace( '-', ' ', str_replace( '_', ' ', $s ) ) );
+}
+
+
 function TempoMain( $argc, $argv ) {
 	if ( $argc != 2 ) {
 		echo "Usage: tempo.php site_directory\n";
@@ -280,9 +323,9 @@ function TempoMain( $argc, $argv ) {
 	echo "Cleaning old output\n";
 	TempoRmDir( $output_dir );
 	
-	// get list of pages, each with filename and slug
-	$all_files = array();
-	TempoDirlist( &$all_files, $pages_dir ); 
+	// get list of pages
+	function map_file_list( $i ) { return array( 'file' => $i ); }
+	$all_files = array_map( 'map_file_list', TempoListFiles( $pages_dir, '.txt' ) );
 	
 	// parse titles, template names and other meta information, add it to $all_files
 	for ( $i=0; $i < count( $all_files ); $i++ ) {
@@ -316,8 +359,8 @@ function TempoMain( $argc, $argv ) {
 	
 	//$blog_latest = array_slice( $blog_files, 0, min( $blog_num_latest, count( $blog_files ) ) );
 	$blog_rss = array_slice( $blog_files, 0, min( $blog_num_rss, count( $blog_files ) ) );
-	
-	// generate html
+		
+	// generate html for regular pages
 	for ( $i=0; $i < count( $all_files ); $i++ ) {
 		echo "Processing ".$all_files[ $i ]['file']."\n";
 	
@@ -328,12 +371,132 @@ function TempoMain( $argc, $argv ) {
 		@mkdir( dirname( $destination ), 0777, true );
 		
 		file_put_contents( $destination, $contents );
-	}
+	}	
 	
 	// copy static resources
 	echo "Copying media\n";
 	TempoRCopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
 	TempoRCopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
+	
+	// generate html for galleries - without the 'pages' txt system, using php templates directly
+	if ( $gallery_dir ) {
+
+		$menuitem = $gallery_menuitem;
+
+		$gallery_dirs = TempoListSubdirs( $site_dir . '/'. $gallery_dir );
+		$galleries = array();
+				
+		foreach( $gallery_dirs as $dir ) {
+			echo "Processing gallery $dir\n";
+			
+			$jpgs = TempoListFiles( $site_dir . '/'. $gallery_dir . '/' . $dir, '.jpg' );
+			
+			$gallery_slug = TempoSlug( str_replace( '-', ' ', $dir ) );
+			
+			// filename with '!' means this is the key photo to be used in the gallery index for a given gallery.
+			$key_photo_index = 0;
+			for ( $i=0; $i < count( $jpgs ); $i++ ) {
+				if ( strpos( $jpgs[ $i ], '!' ) !== false ) {
+					$key_photo_index = $i;
+				}
+			}
+			
+			$items = array();
+			$index = 0;
+			
+			foreach( $jpgs as $jpg ) {			
+				$path = $gallery_dir . '/' . $dir . '/' . $jpg; 
+				
+				if ( $gallery_thumb ) {
+					$thumb = TempoResizeImage( $site_dir, $gallery_dir, $cache_dir, $output_dir, $site_dir . '/' . $path, $gallery_thumb, true );
+					$thumb = str_replace( $output_dir .'/', '', $thumb ); // image was resized, links to thumbnail
+					$thumb = str_replace( $site_dir .'/', '', $thumb ); // image was not resized, links to original
+				}
+
+				if ( $gallery_small ) {
+					$small = TempoResizeImage( $site_dir, $gallery_dir, $cache_dir, $output_dir, $site_dir . '/' . $path, $gallery_small, true );
+					$small = str_replace( $output_dir .'/', '', $small ); // image was resized, links to thumbnail
+					$small = str_replace( $site_dir .'/', '', $small ); // image was not resized, links to original
+				}
+
+				if ( $gallery_large ) {
+					$large = TempoResizeImage( $site_dir, $gallery_dir, $cache_dir, $output_dir, $site_dir . '/' . $path, $gallery_large, true );
+					$large = str_replace( $output_dir .'/', '', $large ); // image was resized, links to thumbnail
+					$large = str_replace( $site_dir .'/', '', $large ); // image was not resized, links to original
+				}
+
+				$detail_slug = str_pad( $index+1, 4, '0', STR_PAD_LEFT );
+				$items[] = array(
+					'thumb' => $thumb,
+					'small' => $small,
+					'large' => $large,
+					'slug' => $detail_slug,
+					'link' => $detail_slug  . '.html',
+				);
+				
+				$index++;
+			}
+			
+			$galleries[] = array(
+				'items' => $items,
+				'key_photo_index' => $key_photo_index,
+				'count' => count( $items ),
+				'slug' => $gallery_slug,
+				'link' => $gallery_dir . '/' . $gallery_slug . '/index.html',
+				'name' => TempoBeautifyName( $dir ), // any way to "beautify" ? capitalize, replace underscores?
+			);
+		}
+
+		$gallery_index_template = $template_dir . '/gallery-index.php';
+		$gallery_list_template = $template_dir . '/gallery-list.php';
+		$gallery_detail_template = $template_dir . '/gallery-detail.php';
+
+		// write gallery index html		
+		$code = file_get_contents( $gallery_index_template );
+	
+		ob_start();
+		eval( '?>' . $code );
+		$contents = ob_get_contents();
+		ob_end_clean();
+	
+		file_put_contents( $output_dir . '/' . $gallery_dir . '.html', $contents );
+	
+		// write listing html for each gallery
+		if ( file_exists( $gallery_list_template ) ) {
+			foreach( $galleries as $gallery ) {
+				echo 'Generating HTML for gallery '.$gallery['name']."\n";
+			
+				$code = file_get_contents( $gallery_list_template );
+				$root_url = '../../';
+			
+				ob_start();
+				eval( '?>' . $code );
+				$contents = ob_get_contents();
+				ob_end_clean();
+			
+				$dir = $output_dir . '/' . $gallery_dir . '/' . $gallery['slug'];
+				@mkdir( $dir, 0777, true ); // true=recursive
+				file_put_contents( $dir . '/index.html', $contents );
+				
+				if ( file_exists( $gallery_detail_template ) ) {
+					foreach( $gallery['items'] as $item ) {
+						echo 'Generating HTML for gallery item '.$item['detail_slug'] . "\n";
+						
+						$code = file_get_contents( $gallery_detail_template );
+						$root_url = '../../';
+					
+						ob_start();
+						eval( '?>' . $code );
+						$contents = ob_get_contents();
+						ob_end_clean();
+					
+						$dir = $output_dir . '/' . $gallery_dir . '/' . $gallery['slug'];
+						file_put_contents( $dir . '/' . $item['slug'] . '.html', $contents );
+					}
+				}
+			}
+		}	
+	}	
 }
 
 
