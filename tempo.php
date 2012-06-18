@@ -50,14 +50,14 @@ function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $file
 		@mkdir( dirname( $output_filename ), 0777, true ); // recursive
 
         $image_p = imagecreatetruecolor($width, $height);
-        if ( $info['extension'] == 'jpg' ) {
+        if ( strtolower( $info['extension'] ) == 'jpg' ) {
 	        $image = imagecreatefromjpeg($filename);
 	    } else {
 	    	$image = imagecreatefrompng($filename);
 	    }
 	    imagecopyresampled($image_p, $image, 0, 0, 0, 0, $width, $height, $width_orig, $height_orig);
                 
-        if ( $info['extension'] == 'jpg' ) {
+        if ( strtolower( $info['extension'] ) == 'jpg' ) {
             imagejpeg($image_p, $output_filename, 85);
         } else {
             imagepng( $image_p, $output_filename );
