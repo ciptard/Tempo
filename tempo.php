@@ -53,7 +53,7 @@ function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $file
         if ( $info['extension'] == 'jpg' ) {
 	        $image = imagecreatefromjpeg($filename);
 	    } else {
-	    	$image = iamgecreatefrompng($filename);
+	    	$image = imagecreatefrompng($filename);
 	    }
 	    imagecopyresampled($image_p, $image, 0, 0, 0, 0, $width, $height, $width_orig, $height_orig);
                 
@@ -233,7 +233,7 @@ function TempoGeneratePage( $template_dir, $site_url, $blog_rss, $blog_files, $i
 	return $contents;
 }
 
-function TempoParse( $default_format, $site_url, $file, $lines ) {
+function TempoParse( $default_format, $site_dir, $output_dir, $site_url, $file, $lines, $image_dimensions ) {
 	$reading_header = true;
 	$body = array();
 	$result = array();
@@ -331,7 +331,7 @@ function TempoMain( $argc, $argv ) {
 	for ( $i=0; $i < count( $all_files ); $i++ ) {
 		extract( $all_files[ $i ] );
 		$lines = file( $pages_dir . '/' . $file );
-		$vars = TempoParse( $default_format, $site_url, $file, $lines );
+		$vars = TempoParse( $default_format, $site_dir, $output_dir, $site_url, $file, $lines, $image_dimensions );
 		$all_files[ $i ] = array_merge( $all_files[ $i ], $vars );
 	}
 	
