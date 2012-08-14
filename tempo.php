@@ -43,9 +43,9 @@ function TempoResizeImage( $site_dir, $media_dir, $cache_dir, $output_dir, $file
            $height = round($width/$ratio_orig);
         }
 
-        echo "  Resizing image $filename to ${width}x${height}\n";
-
         $output_filename = $dir .'/' . TempoStem($filename) . '-' . $width . '.'. $info['extension'];
+
+        echo "  Resizing image $filename to ${width}x${height}\n";
         
 		@mkdir( dirname( $output_filename ), 0777, true ); // recursive
 
@@ -95,11 +95,8 @@ function TempoRmDir($dir) {
 
 // from comment at http://php.net/manual/en/function.copy.php
 function TempoRCopy($src, $dst) {
-	if (file_exists($dst)) {
-		TempoRmDir($dst);
-	}
 	if (is_dir($src)) {
-		mkdir($dst);
+		@mkdir($dst);
 		$files = scandir($src);
 		foreach ($files as $file) {
 			if ($file != "." && $file != "..") {
@@ -340,7 +337,6 @@ function TempoMain( $argc, $argv ) {
 	function TempoBlogSortDescending($a, $b) { return strcmp($b["file"], $a["file"]); }
 	
 	// filter blog posts
-	
 	$blog_files = array();
 	usort( $all_files, "TempoBlogSortDescending" );
 	
@@ -372,15 +368,14 @@ function TempoMain( $argc, $argv ) {
 		
 		file_put_contents( $destination, $contents );
 	}	
-	
+
 	// copy static resources
 	echo "Copying media\n";
 	TempoRCopy( $site_dir . '/'. $media_dir, $output_dir . '/'.$media_dir );
 	TempoRCopy( $site_dir . '/.htaccess', $output_dir . '/.htaccess' );
-	
+		
 	// generate html for galleries - without the 'pages' txt system, using php templates directly
 	if ( $gallery_dir ) {
-
 		$menuitem = $gallery_menuitem;
 
 		$gallery_dirs = TempoListSubdirs( $site_dir . '/'. $gallery_dir );
