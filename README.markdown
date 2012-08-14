@@ -78,6 +78,7 @@ The source for a Tempo site might look like this:
 	templates
 	.htaccess
 	> php /path/to/tempo.php www.example.com
+	...
 	> ls -la www.example.com/output
 	gallery
 	media
@@ -86,11 +87,9 @@ The source for a Tempo site might look like this:
 	gallery.html
 	index.html
 
-	Use your favorite FTP or SSH client to copy www.example.com/output to your server.
+Use your favorite FTP or SSH client to copy www.example.com/output to your server. I like using rsync.
 
-	I like using rsync.
-
-** Sites that use Tempo **
+**Sites that use Tempo**
 
 - http://www.catnapgames.com
 - http://www.cattleshow.net
